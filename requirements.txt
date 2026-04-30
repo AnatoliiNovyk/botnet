@@ -1,3 +1,4 @@
+cat > botnet/requirements.txt << 'EOL'
 fastapi
 uvicorn[standard]
 redis
@@ -8,4 +9,4 @@ pillow
 requests
 pynput
 scapy
-cryptography
+EOL
